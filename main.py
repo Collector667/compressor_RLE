@@ -31,10 +31,11 @@ def encode_unrepeated_append(compressed_S, len_symbol, buffer, buffer_len):
 
 
 class Compressor_by_mahmudovm:
-    def __init__(self, pathOrig , pathCompress = 'compressed'):
+    def __init__(self, pathOrig , pathCompress = 'compressed.txt'):
         self.path_compress = pathCompress
         self.path_orig = pathOrig
         self.path_decompress = "decompressed_" + pathOrig
+    
     def RLE_decode(self):
         file = open(self.path_compress, "rb")
         compressed_S = file.read()
@@ -65,18 +66,54 @@ class Compressor_by_mahmudovm:
         file.write(decompressed_S)
         file.close()
         return decompressed_S
+    def RLE_bit_decode(self):
+        file = open(self.path_compress, "rb")
+        compressed_S = file.read()
+        compressed_S_bits = BitArray()
+        compressed_S_bits.byteArray_to_bitArray(compressed_S)
+        decompressed_bits = BitArray()
+        len_symbol = compressed_S[0]
+        N = compressed_S_bits.len()
+        i = 8
+        N_encode = N
+        symbol = BitArray()
+        while i < N_encode:
+            symbol.append_bit(compressed_S_bits.bitArray[i])
+            if symbol.len() == len_symbol:
+                i+=1
+                if symbol.bitArray_to_int() <=128:
+                    for _ in range(symbol.bitArray_to_int()):
+                        for q in range(len_symbol):
+                            decompressed_bits.append_bit(compressed_S_bits.bitArray[i+q])
+                    i+= 8 + len_symbol
+                else:
+                    l = symbol.bitArray_to_int() - 128
+                    for _ in range(l * len_symbol):
+                        decompressed_bits.append_bit(compressed_S_bits.bitArray[i+_])
+                    i+= l*len_symbol
+
+                symbol = BitArray()
+            else:
+                i+=1
+        S = decompressed_bits.bitArray_to_byteArray()
+        file.close()
+        file = open(self.path_decompress, 'wb')
+        file.write(S)
+        file.close()
+        return S
     def RLE_bit(self, len_symbol = 8):
         if len_symbol < 1:
             len_symbol = 1
         file_input = open(self.path_orig, "rb")
         file_output = open(self.path_compress, "wb")
         S = bytearray(file_input.read())
-        print(S)
         compressed_S_bits = BitArray()
+        z = bytearray()
+        z.append(len_symbol)
+        compressed_S_bits.byteArray_to_bitArray(z)
         prev_bits = BitArray()
         S_bits = BitArray()
         S_bits.byteArray_to_bitArray(byteArray=S)
-        print(S_bits.bitArray_to_byteArray())
         for _ in S_bits.bitArray[:len_symbol]:
             prev_bits.append_bit(_)
         counter = 1
@@ -110,7 +147,13 @@ class Compressor_by_mahmudovm:
                             compressed_S_bits.append(bits_len)
                             for _ in range((buffer_len - 128) * len_symbol):
                                 compressed_S_bits.append_bit(buffer.bitArray[x + _])
+                        buffer = BitArray()
+                        buffer_len = 127
+                        flag = False
+
                         counter = 1
+
+                    counter+=1
                 else:
                     if counter == 1:
                         if not flag:
@@ -131,7 +174,8 @@ class Compressor_by_mahmudovm:
                         if counter > 0:
                             z = bytearray()
                             z.append(counter)
-                            bits_counter = BitArray().byteArray_to_bitArray(z)
+                            bits_counter = BitArray()
+                            bits_counter.byteArray_to_bitArray(z)
                             compressed_S_bits.append(bits_counter)
                             compressed_S_bits.append(prev_bits)
                 prev_bits = symbol
@@ -152,12 +196,13 @@ class Compressor_by_mahmudovm:
                         compressed_S_bits.append(buffer.bitArray[x + _])
                     x += 127 * len_symbol
             if buffer_len > 128:
-
                 z = bytearray()
+
                 z.append(buffer_len)
                 bits_len = BitArray()
                 bits_len.byteArray_to_bitArray(z)
                 compressed_S_bits.append(bits_len)
+                print(buffer_len, buffer.len())
                 for _ in range((buffer_len - 128) * len_symbol):
                     compressed_S_bits.append_bit(buffer.bitArray[x + _])
         else:
@@ -177,7 +222,6 @@ class Compressor_by_mahmudovm:
                 bits_counter.byteArray_to_bitArray(z)
                 compressed_S_bits.append(bits_counter)
                 compressed_S_bits.append(prev_bits)
-
         compressed_S = compressed_S_bits.bitArray_to_byteArray()
         file_output.write(compressed_S)
         file_input.close()
@@ -223,7 +267,6 @@ class Compressor_by_mahmudovm:
                         counter = 1
                 prev_symbol = symbol
                 symbol = bytearray()
-
         if flag:
             for _ in range(len_symbol):
                 buffer.append(prev_symbol[_])
@@ -238,21 +281,3 @@ class Compressor_by_mahmudovm:
         file_input.close()
         file_output.close()
         return compressed_S
-import bitArray
-if __name__ == '__main__':
-    # compress = Compressor_by_mahmudovm('rar')
-    # x1 = compress.RLE()
-    # x2 = compress.RLE_decode()
-    # print(x1 == x2)
-    # array = []
-    # x = True
-    # b = False
-    # array.append(x)
-    # print(array)
-    # print(type(array[0]))
-    T = Compressor_by_mahmudovm('some.txt')
-    t1 = T.RLE_bit(8)
-    t2 = T.RLE(8)
-    print(t1 == t2)
-    print(t1)
-    print(t2)
